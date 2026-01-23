@@ -53,30 +53,9 @@ export class ExampleFactory {
     return { ccfInfo: "", citationNumber: "" };
   }
 
-  // 清理旧的CCF标签（用于从旧版本迁移）
-  private static cleanupOldTags(item: Zotero.Item) {
-    try {
-      const tags = item.getTags();
-      let hasChanges = false;
-      tags.forEach(tag => {
-        if (tag.tag.startsWith("ccfInfo:") || tag.tag.startsWith("citationNumber:")) {
-          item.removeTag(tag.tag);
-          hasChanges = true;
-        }
-      });
-      if (hasChanges) {
-        item.saveTx();
-      }
-    } catch (error) {
-      ztoolkit.log("Error cleaning up old tags:", error);
-    }
-  }
-
   // 保存CCF信息到note
   private static async saveCCFInfoToNote(item: Zotero.Item, ccfInfo?: string, citationNumber?: string) {
     try {
-      // 清理旧标签
-      ExampleFactory.cleanupOldTags(item);
 
       // getNotes()返回的是note ID数组
       const noteIDs = item.getNotes();
