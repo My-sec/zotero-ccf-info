@@ -28,6 +28,10 @@ If the journal/conference information is missing, you can refer to `src/modules/
 
 Then, you can submit a PR to add the missing information.
 
+# 从Info中提取信息进行匹配
+<img width="313" height="146" alt="image" src="https://github.com/user-attachments/assets/ac03ee71-92a8-4e52-a40f-cf6edb999076" />
+<img width="319" height="64" alt="image" src="https://github.com/user-attachments/assets/10af4485-c440-4cf7-ab29-077c767bc1fe" />
+
 # Contributors
 
 - [TimeTrapzz](https://github.com/TimeTrapzz): Zotero 7 Plugin Rewrite and Adaptation
