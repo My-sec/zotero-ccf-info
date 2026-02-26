@@ -37,7 +37,7 @@ interface RankInfo {
   dblp: string;
 }
 
-const ccfRankList: { [key: string]: RankInfo } = {
+export const ccfRankList: { [key: string]: RankInfo } = {
   "/journals/tocs": {
     rank: "A",
     abbr: "TOCS",
@@ -1203,7 +1203,8 @@ const ccfRankList: { [key: string]: RankInfo } = {
   "/conf/ndss": {
     rank: "A",
     abbr: "NDSS",
-    full: "ISOC Network and Distributed System Security Symposium",
+    // full: "ISOC Network and Distributed System Security Symposium",
+    full: "Network and Distributed System Security Symposium",
     url: "/conf/ndss",
     dblp: "/conf/ndss/ndss",
   },
@@ -4544,7 +4545,7 @@ export const PaperInfo: PaperInfo = {
   },
 
   cleanString(input: string): string {
-    let alphanumeric = input.replace(/[^a-zA-Z0-9]/g, '');
+    const alphanumeric = input.replace(/[^a-zA-Z0-9]/g, '');
     return alphanumeric.toLowerCase();
   },
 
@@ -4684,14 +4685,14 @@ export const PaperInfo: PaperInfo = {
 
         for (let i = 0; i < resp['urls'].length; i++) {
           if (resp['urls'][i]['title'] === title) {
-            let url = resp['urls'][i]['url'];
-            let temp_dblp_url = '/' + url.substring(0, url.lastIndexOf("/"));
+            const url = resp['urls'][i]['url'];
+            const temp_dblp_url = '/' + url.substring(0, url.lastIndexOf("/"));
             rankinfo = ccfRankList[temp_dblp_url];
             if (rankinfo !== undefined) {
               break;
             }
             else {
-              let temp = temp_dblp_url.substring(temp_dblp_url.indexOf("/", 1) + 1).toUpperCase();
+              const temp = temp_dblp_url.substring(temp_dblp_url.indexOf("/", 1) + 1).toUpperCase();
               if (ccfnoneinfo === undefined || temp !== "CORR") {
                 ccfnoneinfo = temp;
               }
@@ -4747,14 +4748,14 @@ export const PaperInfo: PaperInfo = {
 
           for (let i = 0; i < resp[index]['urls'].length; i++) {
             if (resp[index]['urls'][i]['title'] === title) {
-              let url = resp[index]['urls'][i]['url'];
-              let temp_dblp_url = '/' + url.substring(0, url.lastIndexOf("/"));
+              const url = resp[index]['urls'][i]['url'];
+              const temp_dblp_url = '/' + url.substring(0, url.lastIndexOf("/"));
               rankinfo = ccfRankList[temp_dblp_url];
               if (rankinfo !== undefined) {
                 break;
               }
               else {
-                let temp = temp_dblp_url.substring(temp_dblp_url.indexOf("/", 1) + 1).toUpperCase();
+                const temp = temp_dblp_url.substring(temp_dblp_url.indexOf("/", 1) + 1).toUpperCase();
                 if (ccfnoneinfo === undefined || temp !== "CORR") {
                   ccfnoneinfo = temp;
                 }

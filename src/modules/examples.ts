@@ -1,6 +1,6 @@
 import { config } from "../../package.json";
 import { getLocaleID, getString } from "../utils/locale";
-import { PaperInfo } from "./getPaperInfo";
+import { PaperInfo, ccfRankList } from "./getPaperInfo";
 
 // Note标题常量
 const CCF_INFO_NOTE_TITLE = "CCF Info & Citations";
@@ -12,9 +12,52 @@ interface CCFInfoData {
 }
 
 export class ExampleFactory {
+  private static ccfInfoCache = new Map<number, CCFInfoData>();
+
+  private static escapeRegExp(value: string): string {
+    return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  }
+
+  private static localMatchCCFInfo(item: Zotero.Item): string | null {
+    const venueFields = ["publicationTitle", "proceedingsTitle", "conferenceName"];
+    const venues = venueFields
+      .map((field) => (item.getField(field) || "").toString().trim())
+      .filter(Boolean);
+
+    if (venues.length === 0) {
+      return null;
+    }
+
+    for (const venue of venues) {
+      const venueLower = venue.toLowerCase();
+      for (const rankInfo of Object.values(ccfRankList)) {
+        if (rankInfo.full && venueLower.includes(rankInfo.full.toLowerCase())) {
+          return `CCF-${rankInfo.rank} ${rankInfo.abbr}`.trim();
+        }
+
+        if (rankInfo.abbr) {
+          const abbrPattern = new RegExp(
+            `\\b${ExampleFactory.escapeRegExp(rankInfo.abbr)}\\b`,
+            "i",
+          );
+          if (abbrPattern.test(venue)) {
+            return `CCF-${rankInfo.rank} ${rankInfo.abbr}`.trim();
+          }
+        }
+      }
+    }
+
+    return null;
+  }
+
   // 从note中获取CCF信息
   private static getCCFInfoFromNote(item: Zotero.Item): CCFInfoData {
     try {
+      const cached = ExampleFactory.ccfInfoCache.get(item.id);
+      if (cached) {
+        return cached;
+      }
+
       // getNotes()返回的是note ID数组
       const noteIDs = item.getNotes();
       if (!noteIDs || noteIDs.length === 0) {
@@ -32,7 +75,7 @@ export class ExampleFactory {
           ztoolkit.log("Found CCF note, content:", noteContent);
 
           // 移除HTML标签，提取JSON内容
-          const textContent = noteContent.replace(/<[^>]*>/g, '').trim();
+          const textContent = noteContent.replace(/<[^>]*>/g, "").trim();
           ztoolkit.log("Text content:", textContent);
 
           // 尝试找到JSON部分
@@ -40,10 +83,12 @@ export class ExampleFactory {
           if (jsonMatch) {
             const data = JSON.parse(jsonMatch[0]) as CCFInfoData;
             ztoolkit.log("Parsed data:", data);
-            return {
+            const parsedData = {
               ccfInfo: data.ccfInfo || "",
               citationNumber: data.citationNumber || "",
             };
+            ExampleFactory.ccfInfoCache.set(item.id, parsedData);
+            return parsedData;
           }
         }
       }
@@ -56,7 +101,6 @@ export class ExampleFactory {
   // 保存CCF信息到note
   private static async saveCCFInfoToNote(item: Zotero.Item, ccfInfo?: string, citationNumber?: string) {
     try {
-
       // getNotes()返回的是note ID数组
       const noteIDs = item.getNotes();
       let ccfNote: Zotero.Item | null = null;
@@ -85,7 +129,6 @@ export class ExampleFactory {
 
       // 获取现有数据
       const existingData = ExampleFactory.getCCFInfoFromNote(item);
-
       // 只更新提供的字段，保留现有值
       const finalCcfInfo = ccfInfo !== undefined && ccfInfo !== "" ? ccfInfo : existingData.ccfInfo;
       const finalCitationNumber = citationNumber !== undefined && citationNumber !== "" ? citationNumber : existingData.citationNumber;
@@ -95,6 +138,7 @@ export class ExampleFactory {
         ccfInfo: finalCcfInfo,
         citationNumber: finalCitationNumber,
       };
+      ExampleFactory.ccfInfoCache.set(item.id, jsonData);
 
       // 构建note内容（使用HTML格式包装JSON，便于在Zotero中查看）
       const jsonString = JSON.stringify(jsonData, null, 2);
@@ -106,7 +150,6 @@ export class ExampleFactory {
 
       // 等待一小段时间确保保存完成
       await new Promise(resolve => setTimeout(resolve, 100));
-
       // 刷新列显示
       ExampleFactory.refreshItemTreeRow(item);
     } catch (error) {
@@ -118,7 +161,8 @@ export class ExampleFactory {
   private static refreshItemTreeRow(item: Zotero.Item) {
     try {
       // 方法1: 使用 Zotero.Notifier 触发刷新
-      Zotero.Notifier.trigger('refresh', 'item', [item.id]);
+      Zotero.Notifier.trigger("refresh", "item", [item.id]);
+      Zotero.Notifier.trigger("modify", "item", [item.id]);
 
       // 方法2: 尝试直接刷新itemsView
       const ZoteroPane = Zotero.getActiveZoteroPane();
@@ -128,8 +172,12 @@ export class ExampleFactory {
           if (rowIndex !== false && rowIndex !== undefined) {
             ZoteroPane.itemsView.tree.invalidateRow(rowIndex);
           }
+          ZoteroPane.itemsView.tree.invalidate();
+          ZoteroPane.itemsView.refreshAndMaintainSelection?.();
         } catch (e) {
           ztoolkit.log("Could not invalidate specific row, refreshing all:", e);
+          ZoteroPane.itemsView.tree.invalidate();
+          ZoteroPane.itemsView.refreshAndMaintainSelection?.();
         }
       }
 
@@ -193,6 +241,15 @@ export class ExampleFactory {
       await ExampleFactory.handleSingleItem(items[0]);
     } else {
       await ExampleFactory.handleMultipleItems(items);
+    }
+  }
+
+  public static async handleLocalMatchCCFInfo(items: Zotero.Item[]) {
+    if (!items || items.length === 0) return;
+
+    for (const item of items) {
+      const ccfInfo = ExampleFactory.localMatchCCFInfo(item) || "Not Found";
+      await ExampleFactory.saveCCFInfoToNote(item, ccfInfo);
     }
   }
 
@@ -270,6 +327,17 @@ export class ExampleFactory {
       commandListener: (ev) => {
         const items = ZoteroPane.getSelectedItems();
         ExampleFactory.handleGetCCFInfo(items);
+      },
+      icon: menuIcon,
+    });
+
+    ztoolkit.Menu.register("item", {
+      tag: "menuitem",
+      id: "zotero-itemmenu-get-ccf-info-local-match",
+      label: "Update CCF (Local Match)",
+      commandListener: (ev) => {
+        const items = ZoteroPane.getSelectedItems();
+        ExampleFactory.handleLocalMatchCCFInfo(items);
       },
       icon: menuIcon,
     });
